@@ -2,6 +2,7 @@ package com.truu.hiring.service;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
@@ -16,7 +17,7 @@ public class IdentityRequestManager {
   private static final Duration EXPIRES_AFTER = Duration.ofMinutes(10);
   private static final Duration DELETE_AFTER = Duration.ofMinutes(60);
 
-  private Map<String, IdentityRequest> identityRequests = new ConcurrentHashMap<>();
+  private Map<String, IdentityRequest> identityRequests = new HashMap<>();
 
   public IdentityRequest createRequest() {
     IdentityRequest identityRequest = new IdentityRequest(UUID.randomUUID().toString());
@@ -25,11 +26,23 @@ public class IdentityRequestManager {
   }
 
   public boolean completeRequest(String requestId, String upn, boolean shouldDelete) {
-    return updateRequestStatus(requestId, IdentityRequest.Status.COMPLETE, upn);
+    IdentityRequest identityRequest = identityRequests.get(requestId);
+    if (identityRequest != null) {
+      identityRequest.setStatus(IdentityRequest.Status.COMPLETE);
+      identityRequest.setUpn(upn);
+      return true;
+    }
+    return false;
   }
 
   public boolean rejectRequest(String requestId, String upn) {
-    return updateRequestStatus(requestId, IdentityRequest.Status.REJECTED, upn);
+    IdentityRequest identityRequest = identityRequests.get(requestId);
+    if (identityRequest != null) {
+      identityRequest.setStatus(IdentityRequest.Status.REJECTED);
+      identityRequest.setUpn(upn);
+      return true;
+    }
+    return false;
   }
 
   public IdentityRequest.IdentityRequestState getRequestState(String requestId) {
@@ -45,26 +58,13 @@ public class IdentityRequestManager {
     }
   }
 
-  private boolean updateRequestStatus(String requestId, IdentityRequest.Status newStatus, String upn) {
-    IdentityRequest identityRequest = identityRequests.get(requestId);
-    if (identityRequest != null) {
-      synchronized (identityRequest) {
-        identityRequest.setStatus(newStatus);
-        identityRequest.setUpn(upn);
-        return true;
-      }
-    }
-    return false;
-  }
-
   @Scheduled(fixedDelay = 60000)
   protected void processRequests() {
     LocalDateTime now = LocalDateTime.now();
     Iterator<IdentityRequest> iterator = identityRequests.values().iterator();
-    while (iterator.hasNext()) {
-      IdentityRequest identityRequest = iterator.next();
+    for (IdentityRequest identityRequest : identityRequests.values()) {
       if (identityRequest.getStatus() == IdentityRequest.Status.IN_PROGRESS && identityRequest.getCreated().plus(EXPIRES_AFTER).isBefore(now)) {
-        updateRequestStatus(identityRequest.getId(), IdentityRequest.Status.EXPIRED, null);
+        identityRequest.setStatus(IdentityRequest.Status.EXPIRED);
       }
       if (identityRequest.getCreated().plus(DELETE_AFTER).isBefore(now)) {
         iterator.remove();
