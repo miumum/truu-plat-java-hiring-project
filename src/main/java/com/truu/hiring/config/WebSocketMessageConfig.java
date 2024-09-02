@@ -31,11 +31,6 @@ import org.springframework.web.socket.messaging.AbstractSubProtocolEvent;
 @EnableWebSocketMessageBroker
 public class WebSocketMessageConfig extends AbstractSecurityWebSocketMessageBrokerConfigurer {
 
-  public static final int SEND_TIME_LIMIT = 10 * 1000; // 10sec
-  private static final int MAX_MESSAGE_SIZE = 1024 * 128; // 128Kb
-  // BUFFER has reserved memory and significantly increase memory footprint event we don't fully utilize it.
-  private static final int MAX_SEND_BUFFER = 1024 * 1024; // 1Mb
-
   @Autowired
   private TaskScheduler taskScheduler;
 
@@ -63,9 +58,9 @@ public class WebSocketMessageConfig extends AbstractSecurityWebSocketMessageBrok
   @Override
   public void configureWebSocketTransport(WebSocketTransportRegistration registry) {
     registry
-        .setMessageSizeLimit(MAX_MESSAGE_SIZE)
-        .setSendBufferSizeLimit(MAX_SEND_BUFFER)
-        .setSendTimeLimit(SEND_TIME_LIMIT);
+        .setMessageSizeLimit(1024 * 128)
+        .setSendBufferSizeLimit(1024 * 1024)
+        .setSendTimeLimit(10 * 1000);
   }
 
   @Override

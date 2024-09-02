@@ -26,7 +26,6 @@ import org.springframework.web.socket.messaging.SessionUnsubscribeEvent;
 @Controller
 public class WebSocketAuthorizeController {
 
-  public static final String RESOLVED_REQUEST_QUEUE = "/queue" + "/requestResolved";
 
   protected final ScheduledExecutorService scheduledExecutorService;
   private final SimpMessagingTemplate wsMessagingTemplate;
@@ -47,7 +46,7 @@ public class WebSocketAuthorizeController {
       classes = {SessionSubscribeEvent.class},
       condition =
           "event.message.headers.get(T(org.springframework.messaging.simp.SimpMessageHeaderAccessor).DESTINATION_HEADER)" +
-              ".endsWith('/user" + RESOLVED_REQUEST_QUEUE + "')"
+              ".endsWith('/user/queue/requestResolved')"
   )
   public void handleSessionSubscribeEvent(SessionSubscribeEvent event) {
     SimpMessageHeaderAccessor simpMessage = StompHeaderAccessor.wrap(event.getMessage());
@@ -67,7 +66,7 @@ public class WebSocketAuthorizeController {
       );
       startToPublishResolutionEvents(eventSubscriptionKey);
     } catch (Exception e) {
-      String msg = "Could not subscribe to " + RESOLVED_REQUEST_QUEUE;
+      String msg = "Could not subscribe to queue/requestResolved";
       throw new IllegalStateException(msg, e);
     }
   }
@@ -89,7 +88,7 @@ public class WebSocketAuthorizeController {
         listeningIdentityRequests.remove(subscriptionKey);
       }
     } catch (Exception e) {
-      String msg = "Could not release the resources while unsubscribe from " + RESOLVED_REQUEST_QUEUE;
+      String msg = "Could not release the resources while unsubscribe from queue/requestResolved";
       throw new IllegalStateException(msg, e);
     }
   }
@@ -138,7 +137,7 @@ public class WebSocketAuthorizeController {
 
       wsMessagingTemplate.convertAndSendToUser(
           wsUserName,
-          RESOLVED_REQUEST_QUEUE,
+          "queue/requestResolved",
           identityStatus,
           Map.of("identityRequestId", identityRequestId)
       );
