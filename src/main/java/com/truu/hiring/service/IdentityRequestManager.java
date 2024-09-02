@@ -9,13 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/**
- * The IdentityRequestManager class manages the creation, completion, rejection, and retrieval of identity verification requests.
- * Identity verification requests are represented by the IdentityRequest class.
- * It's automatically processing of requests using, which runs at a fixed delay specified in milliseconds.
- *
- * @see IdentityRequest
- */
+
 @Component
 public class IdentityRequestManager {
 

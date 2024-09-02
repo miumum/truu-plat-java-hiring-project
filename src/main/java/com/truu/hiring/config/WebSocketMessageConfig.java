@@ -26,9 +26,7 @@ import org.springframework.web.socket.config.annotation.WebSocketTransportRegist
 import org.springframework.web.socket.handler.WebSocketHandlerDecorator;
 import org.springframework.web.socket.messaging.AbstractSubProtocolEvent;
 
-/**
- * Configures the web socket handling
- */
+
 @Configuration
 @EnableWebSocketMessageBroker
 public class WebSocketMessageConfig extends AbstractSecurityWebSocketMessageBrokerConfigurer {

@@ -2,11 +2,6 @@ package com.truu.hiring.service;
 
 import java.time.LocalDateTime;
 
-/**
- * IdentityRequest class represents a request for identity verification.
- *
- * @see Status
- */
 public class IdentityRequest {
 
   public enum Status {

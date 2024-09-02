@@ -23,14 +23,6 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
 import org.springframework.web.socket.messaging.SessionUnsubscribeEvent;
 
-/**
- * This controller provides status of identity request trough web socket.
- * It is implemented as {@link #handleSessionSubscribeEvent(SessionSubscribeEvent) web socket event listener}.
- * <p>
- * When listener is established is checks for the request session periodically in the {@link ScheduledFuture}.
- * When web socket event listener is {@link #handleSessionUnSubscribeEvent(SessionUnsubscribeEvent) unsibscribed} the {@link ScheduledFuture} is canceled.
- * </p>
- */
 @Controller
 public class WebSocketAuthorizeController {
 
@@ -53,12 +45,6 @@ public class WebSocketAuthorizeController {
     this.listeningIdentityRequests = new CancelableFutureStorage<>();
   }
 
-  /**
-   * When subscription to the "requestResolved" is being executed the identity request publisher task is created which checks for the identity request status.
-   * When status is resolved the identity request is sent to this subscribed queue.
-   *
-   * @param event the {@link SessionSubscribeEvent}
-   */
   @EventListener(
       classes = {SessionSubscribeEvent.class},
       condition =
@@ -89,12 +75,6 @@ public class WebSocketAuthorizeController {
     }
   }
 
-  /**
-   * When unsubscription to the "requestResolved" is being executed the identity request publisher task canceled.
-   *
-   * @param event the {@link SessionUnsubscribeEvent}
-   * @see ScheduledFuture#cancel(boolean)
-   */
   @EventListener(classes = {SessionUnsubscribeEvent.class})
   public void handleSessionUnSubscribeEvent(SessionUnsubscribeEvent event) {
     try {
@@ -120,12 +100,6 @@ public class WebSocketAuthorizeController {
     }
   }
 
-  /**
-   * When session is closed is being executed the identity request publisher task canceled.
-   *
-   * @param event the {@link SessionDisconnectEvent}
-   * @see ScheduledFuture#cancel(boolean)
-   */
   @EventListener(classes = {SessionDisconnectEvent.class})
   public void handleSessionDisconnectEvent(SessionDisconnectEvent event) {
     try {
@@ -228,12 +202,6 @@ public class WebSocketAuthorizeController {
     }
   }
 
-
-  /**
-   * The enhanced {@link HashMap} which {@link ScheduledFuture#cancel(boolean)} the {@link ScheduledFuture} when is removed
-   *
-   * @param <KEY> the type of keys maintained by this map
-   */
   protected static class CancelableFutureStorage<KEY> extends ConcurrentHashMap<KEY, ScheduledFuture<?>> {
 
     @Override
@@ -241,16 +209,6 @@ public class WebSocketAuthorizeController {
       return remove(key, true);
     }
 
-    /**
-     * Removes and cancels the {@link ScheduledFuture} for the specified key.
-     *
-     * @param key                   key whose mapping is to be removed from the storage map
-     * @param mayInterruptIfRunning {@code true} if the thread executing this task should be interrupted; otherwise,
-     *                              in-progress tasks are allowed to complete
-     * @return the previous value associated with {@code key}, or {@code null} if there was no mapping for {@code key}
-     * or if the {@link ScheduledFuture} could not be canceled
-     * (A {@code null} return can also indicate that the map previously associated {@code null} with {@code key}.)
-     */
     public ScheduledFuture<?> remove(Object key, boolean mayInterruptIfRunning) {
       var removed = super.get(key);
       if (removed != null) {

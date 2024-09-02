@@ -11,10 +11,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * The IdentityController class handles HTTP requests related to identity management.
- * It exposes endpoints for completing, rejecting, and retrieving the status of an identity request.
- */
 @RestController
 @RequestMapping("/identity")
 public class IdentityController {

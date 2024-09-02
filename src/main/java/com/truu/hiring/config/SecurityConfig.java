@@ -10,11 +10,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
-/**
- * The SecurityConfig class is a configuration class that sets up the security configuration for a web application.
- * It is responsible for configuring authentication and setting up the security filter chain.
- *
- */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {

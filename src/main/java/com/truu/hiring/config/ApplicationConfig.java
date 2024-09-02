@@ -16,9 +16,6 @@ import org.springframework.security.web.authentication.www.BasicAuthenticationEn
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 
-/**
- * This class is the spring configuration class for the application.
- **/
 @Configuration
 @EnableWebSocketMessageBroker
 public class ApplicationConfig {
