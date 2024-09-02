@@ -5,7 +5,6 @@ import com.truu.hiring.service.IdentityRequest.Status;
 import com.truu.hiring.service.IdentityRequestManager;
 import java.security.Principal;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -23,20 +22,17 @@ import org.springframework.web.socket.messaging.SessionUnsubscribeEvent;
 @Controller
 public class WebSocketAuthorizeController {
 
+  protected final ScheduledExecutorService s;
+  private final SimpMessagingTemplate t;
+  private final IdentityRequestManager m;
 
-  protected final ScheduledExecutorService scheduledExecutorService;
-  private final SimpMessagingTemplate wsMessagingTemplate;
-  private final IdentityRequestManager requestManager;
+  protected final CancelableFutureStorage<IdentityRequestSubscriptionKey> map;
 
-  protected final CancelableFutureStorage<IdentityRequestSubscriptionKey> listeningIdentityRequests;
-
-  public WebSocketAuthorizeController(ScheduledExecutorService scheduledExecutorService,
-                                      SimpMessagingTemplate wsMessagingTemplate,
-                                      IdentityRequestManager requestManager) {
-    this.scheduledExecutorService = scheduledExecutorService;
-    this.wsMessagingTemplate = wsMessagingTemplate;
-    this.requestManager = requestManager;
-    this.listeningIdentityRequests = new CancelableFutureStorage<>();
+  public WebSocketAuthorizeController(ScheduledExecutorService scheduledExecutorService, SimpMessagingTemplate t, IdentityRequestManager requestManager) {
+    this.s = scheduledExecutorService;
+    this.t = t;
+    this.m = requestManager;
+    this.map = new CancelableFutureStorage<>();
   }
 
   @EventListener(
@@ -55,12 +51,7 @@ public class WebSocketAuthorizeController {
       Principal user = event.getUser();
 
 
-      var eventSubscriptionKey = new IdentityRequestSubscriptionKey(
-          wsSessionId,
-          wsSubscriptionId,
-          identityRequestId,
-          user.getName()
-      );
+      var eventSubscriptionKey = new IdentityRequestSubscriptionKey(wsSessionId, wsSubscriptionId, identityRequestId, user.getName());
       startToPublishResolutionEvents(eventSubscriptionKey);
     } catch (Exception e) {
       String msg = "Could not subscribe to queue/requestResolved";
@@ -71,18 +62,11 @@ public class WebSocketAuthorizeController {
   @EventListener(classes = {SessionUnsubscribeEvent.class})
   public void handleSessionUnSubscribeEvent(SessionUnsubscribeEvent event) {
     try {
-      SimpMessageHeaderAccessor simpMessage = StompHeaderAccessor.wrap(event.getMessage());
-      String wsSessionId = simpMessage.getSessionId();
-      String wsSubscriptionId = simpMessage.getSubscriptionId();
-
-      var toRemove = listeningIdentityRequests.keySet().stream()
-          .filter(subscriptionKey ->
-              subscriptionKey.wsSubscriptionId.equals(wsSubscriptionId) &&
-                  subscriptionKey.wsSessionId.equals(wsSessionId))
-          .collect(Collectors.toSet());
+      SimpMessageHeaderAccessor m3 = StompHeaderAccessor.wrap(event.getMessage());
+      var toRemove = map.keySet().stream().filter(subscriptionKey -> subscriptionKey.wsSubscriptionId.equals(m3.getSubscriptionId()) && subscriptionKey.wsSessionId.equals(m3.getSessionId())).collect(Collectors.toSet());
 
       for (var subscriptionKey : toRemove) {
-        listeningIdentityRequests.remove(subscriptionKey);
+        map.remove(subscriptionKey);
       }
     } catch (Exception e) {
       String msg = "Could not release the resources while unsubscribe from queue/requestResolved";
@@ -93,15 +77,13 @@ public class WebSocketAuthorizeController {
   @EventListener(classes = {SessionDisconnectEvent.class})
   public void handleSessionDisconnectEvent(SessionDisconnectEvent event) {
     try {
-      SimpMessageHeaderAccessor simpMessage = StompHeaderAccessor.wrap(event.getMessage());
-      String wsSessionId = simpMessage.getSessionId();
+      SimpMessageHeaderAccessor m = StompHeaderAccessor.wrap(event.getMessage());
 
-      var toRemove = listeningIdentityRequests.keySet().stream()
-          .filter(subscriptionKey -> subscriptionKey.wsSessionId.equals(wsSessionId))
+      var toRemove = map.keySet().stream().filter(subscriptionKey -> subscriptionKey.wsSessionId.equals(m.getSessionId()))
           .collect(Collectors.toSet());
 
       for (var subscriptionKey : toRemove) {
-        this.listeningIdentityRequests.remove(subscriptionKey);
+        this.map.remove(subscriptionKey);
       }
     } catch (Exception e) {
       String msg = "Could not release the resources while disconnect from ws session.";
@@ -109,36 +91,35 @@ public class WebSocketAuthorizeController {
     }
   }
 
-  private void startToPublishResolutionEvents(IdentityRequestSubscriptionKey eventSubscriptionKey) {
-
+  public void startToPublishResolutionEvents(IdentityRequestSubscriptionKey eventSubscriptionKey) {
     var identityRequestPublisher = prepareIdentityRequestPublisher(eventSubscriptionKey);
-    ScheduledFuture<?> scheduledFuture = scheduledExecutorService.scheduleWithFixedDelay(
+    ScheduledFuture<?> scheduledFuture = s.scheduleWithFixedDelay(
         identityRequestPublisher,
         1000,
         500,
         TimeUnit.MILLISECONDS
     );
-    listeningIdentityRequests.put(eventSubscriptionKey, scheduledFuture);
+    map.put(eventSubscriptionKey, scheduledFuture);
   }
 
-  private Runnable prepareIdentityRequestPublisher(IdentityRequestSubscriptionKey eventSubscriptionKey) {
+  public Runnable prepareIdentityRequestPublisher(IdentityRequestSubscriptionKey eventSubscriptionKey) {
 
     return () -> {
       String identityRequestId = eventSubscriptionKey.identityRequestId;
       String wsUserName = eventSubscriptionKey.wsUserName;
 
-      var identityStatus = requestManager.getRequestState(identityRequestId);
+      var identityStatus = m.getRequestState(identityRequestId);
 
       String upn = identityStatus.getUpn();
       Status status = identityStatus.getStatus();
 
-      wsMessagingTemplate.convertAndSendToUser(
+      t.convertAndSendToUser(
           wsUserName,
           "queue/requestResolved",
           identityStatus,
           Map.of("identityRequestId", identityRequestId)
       );
-      listeningIdentityRequests.remove(eventSubscriptionKey);
+      map.remove(eventSubscriptionKey);
     };
   }
 

@@ -24,7 +24,7 @@ public class IdentityRequestManager {
     return identityRequest;
   }
 
-  public boolean completeRequest(String requestId, String upn) {
+  public boolean completeRequest(String requestId, String upn, boolean shouldDelete) {
     return updateRequestStatus(requestId, IdentityRequest.Status.COMPLETE, upn);
   }
 
@@ -32,10 +32,10 @@ public class IdentityRequestManager {
     return updateRequestStatus(requestId, IdentityRequest.Status.REJECTED, upn);
   }
 
-  public IdentityRequestState getRequestState(String requestId) {
+  public IdentityRequest.IdentityRequestState getRequestState(String requestId) {
     IdentityRequest identityRequest = identityRequests.get(requestId);
     if (identityRequest != null) {
-       return new IdentityRequestState(
+       return new IdentityRequest.IdentityRequestState(
            identityRequest.getId(),
            identityRequest.getStatus(),
            identityRequest.getUpn()
