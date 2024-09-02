@@ -22,12 +22,6 @@ public class IdentityController {
     this.identityRequestManager = identityRequestManager;
   }
 
-  /**
-   * Completes a request by updating its status to complete.
-   *
-   * @param requestId the ID of the request to be completed
-   * @param upn the user principal name associated with the request
-   */
   @PostMapping("/complete")
   public void completeRequest(@RequestParam String requestId, @RequestParam String upn) {
     boolean completed = identityRequestManager.completeRequest(requestId, upn);
@@ -36,12 +30,6 @@ public class IdentityController {
     }
   }
 
-  /**
-   * Rejects a request by updating its status to REJECTED.
-   *
-   * @param requestId the ID of the request to be rejected
-   * @param upn the user principal name associated with the request
-   */
   @PostMapping("/reject")
   public void rejectRequest(@RequestParam String requestId, @RequestParam String upn) {
     boolean completed = identityRequestManager.rejectRequest(requestId, upn);
@@ -50,13 +38,6 @@ public class IdentityController {
     }
   }
 
-  /**
-   * Retrieves the state of a request with the given ID.
-   *
-   * @param requestId the ID of the request
-   * @return the state of the request as an IdentityRequestState object,
-   *         or null if no request with the given ID exists
-   */
   @GetMapping("/status")
   public IdentityRequestState getRequestState(@RequestParam String requestId) {
     var state = identityRequestManager.getRequestState(requestId);
