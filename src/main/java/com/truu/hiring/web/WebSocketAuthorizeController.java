@@ -4,7 +4,6 @@ package com.truu.hiring.web;
 import com.truu.hiring.service.IdentityRequest.Status;
 import com.truu.hiring.service.IdentityRequestManager;
 import java.security.Principal;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
@@ -12,8 +11,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -163,32 +160,12 @@ public class WebSocketAuthorizeController {
     }
 
     @Override
-    public boolean equals(Object o) {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      IdentityRequestSubscriptionKey that = (IdentityRequestSubscriptionKey) o;
-      return Objects.equals(wsSessionId, that.wsSessionId) &&
-          Objects.equals(wsSubscriptionId, that.wsSubscriptionId) &&
-          Objects.equals(wsUserName, that.wsUserName) &&
-          Objects.equals(identityRequestId, that.identityRequestId);
-    }
-
-    @Override
-    public int hashCode() {
-      return Objects.hash(wsSessionId, wsSubscriptionId, wsUserName, identityRequestId);
-    }
-
-    @Override
     public String toString() {
       return wsSessionId + ':' + wsSubscriptionId + ':' + wsUserName + ':' + identityRequestId;
     }
   }
 
-  protected static class CancelableFutureStorage<KEY> extends ConcurrentHashMap<KEY, ScheduledFuture<?>> {
+  protected static class CancelableFutureStorage<X> extends ConcurrentHashMap<X, ScheduledFuture<?>> {
 
     @Override
     public ScheduledFuture<?> remove(Object key) {
@@ -214,8 +191,8 @@ public class WebSocketAuthorizeController {
     }
 
     @Override
-    public ScheduledFuture<?> replace(KEY key, ScheduledFuture<?> value) {
-      var removed = super.replace(key, value);
+    public ScheduledFuture<?> replace(X x, ScheduledFuture<?> value) {
+      var removed = super.replace(x, value);
       if (removed != null) {
         removed.cancel(true);
       }
