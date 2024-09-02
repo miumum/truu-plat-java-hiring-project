@@ -23,29 +23,18 @@ public class IdentityController {
   }
 
   @PostMapping("/complete")
-  public void completeRequest(@RequestParam String requestId, @RequestParam String upn) {
-    boolean completed = identityRequestManager.completeRequest(requestId, upn);
-    if (!completed) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Request not found");
-    }
+  public boolean completeRequest(@RequestParam String requestId, @RequestParam String upn) {
+    return identityRequestManager.completeRequest(requestId, upn);
   }
 
   @PostMapping("/reject")
-  public void rejectRequest(@RequestParam String requestId, @RequestParam String upn) {
-    boolean completed = identityRequestManager.rejectRequest(requestId, upn);
-    if (!completed) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Request not found");
-    }
+  public boolean rejectRequest(@RequestParam String requestId, @RequestParam String upn) {
+    return identityRequestManager.rejectRequest(requestId, upn);
   }
 
   @GetMapping("/status")
   public IdentityRequestState getRequestState(@RequestParam String requestId) {
-    var state = identityRequestManager.getRequestState(requestId);
-    if (state == null) {
-      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Request not found");
-    } else {
-      return state;
-    }
+    return identityRequestManager.getRequestState(requestId);
   }
 }
 
