@@ -22,17 +22,19 @@ import org.springframework.web.socket.messaging.SessionUnsubscribeEvent;
 @Controller
 public class WebSocketAuthorizeController {
 
-  protected final ScheduledExecutorService s;
-  private final SimpMessagingTemplate t;
-  private final IdentityRequestManager m;
+  protected final ScheduledExecutorService executorService;
+  private final SimpMessagingTemplate messagingTemplate;
+  private final IdentityRequestManager requestManager;
 
-  protected final CancelableFutureStorage<IdentityRequestSubscriptionKey> map;
+  protected final Map<IdentityRequestSubscriptionKey, ScheduledFuture<?>> cancelableFutureStorage;
 
-  public WebSocketAuthorizeController(ScheduledExecutorService scheduledExecutorService, SimpMessagingTemplate t, IdentityRequestManager requestManager) {
-    this.s = scheduledExecutorService;
-    this.t = t;
-    this.m = requestManager;
-    this.map = new CancelableFutureStorage<>();
+  public WebSocketAuthorizeController(ScheduledExecutorService scheduledExecutorService,
+                                      SimpMessagingTemplate messagingTemplate,
+                                      IdentityRequestManager requestManager) {
+    this.executorService = scheduledExecutorService;
+    this.messagingTemplate = messagingTemplate;
+    this.requestManager = requestManager;
+    this.cancelableFutureStorage = new ConcurrentHashMap<>();
   }
 
   @EventListener(
@@ -62,11 +64,13 @@ public class WebSocketAuthorizeController {
   @EventListener(classes = {SessionUnsubscribeEvent.class})
   public void handleSessionUnSubscribeEvent(SessionUnsubscribeEvent event) {
     try {
-      SimpMessageHeaderAccessor m3 = StompHeaderAccessor.wrap(event.getMessage());
-      var toRemove = map.keySet().stream().filter(subscriptionKey -> subscriptionKey.wsSubscriptionId.equals(m3.getSubscriptionId()) && subscriptionKey.wsSessionId.equals(m3.getSessionId())).collect(Collectors.toSet());
+      SimpMessageHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
+      var toRemove = this.cancelableFutureStorage.keySet().stream().filter(subscriptionKey -> subscriptionKey.wsSubscriptionId.equals(accessor.getSubscriptionId()) && subscriptionKey.wsSessionId.equals(accessor.getSessionId())).collect(Collectors.toSet());
 
       for (var subscriptionKey : toRemove) {
-        map.remove(subscriptionKey);
+        ScheduledFuture<?> remove = this.cancelableFutureStorage.remove(subscriptionKey);
+        remove.cancel(true);
+
       }
     } catch (Exception e) {
       String msg = "Could not release the resources while unsubscribe from queue/requestResolved";
@@ -79,11 +83,12 @@ public class WebSocketAuthorizeController {
     try {
       SimpMessageHeaderAccessor m = StompHeaderAccessor.wrap(event.getMessage());
 
-      var toRemove = map.keySet().stream().filter(subscriptionKey -> subscriptionKey.wsSessionId.equals(m.getSessionId()))
+      var toRemove = this.cancelableFutureStorage.keySet().stream().filter(subscriptionKey -> subscriptionKey.wsSessionId.equals(m.getSessionId()))
           .collect(Collectors.toSet());
 
       for (var subscriptionKey : toRemove) {
-        this.map.remove(subscriptionKey);
+        ScheduledFuture<?> remove = this.cancelableFutureStorage.remove(subscriptionKey);
+        remove.cancel(true);
       }
     } catch (Exception e) {
       String msg = "Could not release the resources while disconnect from ws session.";
@@ -93,13 +98,13 @@ public class WebSocketAuthorizeController {
 
   public void startToPublishResolutionEvents(IdentityRequestSubscriptionKey eventSubscriptionKey) {
     var identityRequestPublisher = prepareIdentityRequestPublisher(eventSubscriptionKey);
-    ScheduledFuture<?> scheduledFuture = s.scheduleWithFixedDelay(
+    ScheduledFuture<?> scheduledFuture = executorService.scheduleWithFixedDelay(
         identityRequestPublisher,
         1000,
         500,
         TimeUnit.MILLISECONDS
     );
-    map.put(eventSubscriptionKey, scheduledFuture);
+    this.cancelableFutureStorage.put(eventSubscriptionKey, scheduledFuture);
   }
 
   public Runnable prepareIdentityRequestPublisher(IdentityRequestSubscriptionKey eventSubscriptionKey) {
@@ -108,18 +113,18 @@ public class WebSocketAuthorizeController {
       String identityRequestId = eventSubscriptionKey.identityRequestId;
       String wsUserName = eventSubscriptionKey.wsUserName;
 
-      var identityStatus = m.getRequestState(identityRequestId);
+      var identityStatus = requestManager.getRequestState(identityRequestId);
 
       String upn = identityStatus.getUpn();
       Status status = identityStatus.getStatus();
 
-      t.convertAndSendToUser(
+      this.messagingTemplate.convertAndSendToUser(
           wsUserName,
           "queue/requestResolved",
           identityStatus,
           Map.of("identityRequestId", identityRequestId)
       );
-      map.remove(eventSubscriptionKey);
+      this.cancelableFutureStorage.remove(eventSubscriptionKey);
     };
   }
 
@@ -143,41 +148,6 @@ public class WebSocketAuthorizeController {
     @Override
     public String toString() {
       return wsSessionId + ':' + wsSubscriptionId + ':' + wsUserName + ':' + identityRequestId;
-    }
-  }
-
-  protected static class CancelableFutureStorage<X> extends ConcurrentHashMap<X, ScheduledFuture<?>> {
-
-    @Override
-    public ScheduledFuture<?> remove(Object key) {
-      return remove(key, true);
-    }
-
-    public ScheduledFuture<?> remove(Object key, boolean mayInterruptIfRunning) {
-      var removed = super.get(key);
-      if (removed != null) {
-        if (removed.isDone()) {
-          return super.remove(key);
-        } else {
-          boolean canceled = removed.cancel(mayInterruptIfRunning);
-          if (canceled) {
-            return super.remove(key);
-          } else {
-            return null;
-          }
-        }
-      } else {
-        return null;
-      }
-    }
-
-    @Override
-    public ScheduledFuture<?> replace(X x, ScheduledFuture<?> value) {
-      var removed = super.replace(x, value);
-      if (removed != null) {
-        removed.cancel(true);
-      }
-      return removed;
     }
   }
 }
