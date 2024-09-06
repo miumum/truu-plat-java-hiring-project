@@ -56,8 +56,7 @@ public class WebSocketAuthorizeController {
       var eventSubscriptionKey = new IdentityRequestSubscriptionKey(wsSessionId, wsSubscriptionId, identityRequestId, user.getName());
       startToPublishResolutionEvents(eventSubscriptionKey);
     } catch (Exception e) {
-      String msg = "Could not subscribe to queue/requestResolved";
-      throw new IllegalStateException(msg, e);
+
     }
   }
 
@@ -73,8 +72,7 @@ public class WebSocketAuthorizeController {
 
       }
     } catch (Exception e) {
-      String msg = "Could not release the resources while unsubscribe from queue/requestResolved";
-      throw new IllegalStateException(msg, e);
+
     }
   }
 

@@ -61,13 +61,12 @@ public class IdentityRequestManager {
   @Scheduled(fixedDelay = 60000)
   protected void processRequests() {
     LocalDateTime now = LocalDateTime.now();
-    Iterator<IdentityRequest> iterator = identityRequests.values().iterator();
     for (IdentityRequest identityRequest : identityRequests.values()) {
       if (identityRequest.getStatus() == IdentityRequest.Status.IN_PROGRESS && identityRequest.getCreated().plus(EXPIRES_AFTER).isBefore(now)) {
         identityRequest.setStatus(IdentityRequest.Status.EXPIRED);
       }
       if (identityRequest.getCreated().plus(DELETE_AFTER).isBefore(now)) {
-        iterator.remove();
+        identityRequests.remove(identityRequest);
       }
     }
   }
